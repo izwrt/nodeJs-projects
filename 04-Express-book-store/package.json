@@ -5,11 +5,11 @@
     "tsx": "^4.21.0"
   },
   "dependencies": {
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.8",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
-    "pg": "^8.17.2",
+    "pg": "^8.20.0",
     "tsc": "^2.0.4",
     "typescript": "^5.9.3"
   },
@@ -18,7 +18,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "tsx --watch index.ts"
+    "start": "tsx --watch index.ts",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "keywords": [],
   "author": "",
