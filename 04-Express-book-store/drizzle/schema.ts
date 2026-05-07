@@ -1,5 +1,5 @@
-import { integer, pgTable, uuid, varchar, text } from "drizzle-orm/pg-core";
-
+import { integer, pgTable, uuid, varchar, text, index } from "drizzle-orm/pg-core";
+import { sql } from 'drizzle-orm';
 // Keep schemas centralized here for drizzle-kit.
 // (Avoid importing from TS files that use `.js` import specifiers.)
 
@@ -21,5 +21,7 @@ export const booksTable = pgTable("books", {
   title: varchar({ length: 85 }).notNull(),
   description: text(),
   authorId: uuid().references(() => authorTable.id),
-});
+}, (table) => ({
+  searchIndexOnTitle: index("books_title_idx").using('gin', sql`to_tsvector('english', ${table.title})`),
+}));
 
