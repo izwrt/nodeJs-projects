@@ -31,13 +31,7 @@ export const getAutherById = async(req: Request<{id: string}>, res: Response) =>
     const id = req.params.id;
     
     // 400 Bad Request - The user messed up
-    if(!id) return res.status(400).json({ error: "id is required" });
-
-    // Optional: Is it a valid UUID format?
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
-        return res.status(400).json({ error: "Invalid ID format. Must be a valid UUID." });
-    }
+    if(!id) return res.status(400).json({ error: "id is required" })
 
     try{
         const [Author] = await db
