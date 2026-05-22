@@ -1,1 +1,9 @@
 node_modules/
+
+# build output
+**/dist/
+
+# compiled drizzle config outputs (keep drizzle.config.ts tracked)
+**/drizzle.config.js
+**/drizzle.config.d.ts
+**/drizzle.config.*.map
