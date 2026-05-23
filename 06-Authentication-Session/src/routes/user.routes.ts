@@ -4,6 +4,7 @@ import "dotenv/config";
 import db from "../db/index.js";
 import { usersTable } from "../db/schema.js";
 import { eq } from "drizzle-orm";
+import { randomBytes, createHmac } from "node:crypto";
 
 type User = {
     name?: string,
@@ -13,7 +14,7 @@ type User = {
 
 const router: Router = Router();
 
-router.post("/signin", async (req: Request, res: Response) => {
+router.post("/signup", async (req: Request, res: Response) => {
   const { name, email, password } = req.body as User;
 
   if(!name || !email || !password) return res.status(400).json({ error: "Missing fields" });
@@ -28,10 +29,15 @@ router.post("/signin", async (req: Request, res: Response) => {
     return res.status(409).json({ error: `User already exists with ${email}` });
   }
 
+  const salt = randomBytes(16).toString('hex');
+  const passwordHash = createHmac('sha256',salt)
+  .update(password)
+  .digest('hex')
+
   await db.insert(usersTable).values({
     name,
     email,
-    password,
+    password: passwordHash,
   });
 
   return res.status(201).json({ ok: true });
