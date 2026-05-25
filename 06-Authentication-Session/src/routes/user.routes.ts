@@ -12,21 +12,26 @@ type User = {
     password?: string
   };
 
-const router: Router = Router();
+const UserRouter: Router = Router();
 
-router.post("/signup", async (req: Request, res: Response) => {
-  const { name, email, password } = req.body as User;
+UserRouter.post("/signup", async (req: Request, res: Response) => {
+  const { name, email, password } = (req.body ?? {}) as User;
+
+  console.log("content-type:", req.headers["content-type"]);
+  console.log("body:", req.body);
 
   if(!name || !email || !password) return res.status(400).json({ error: "Missing fields" });
 
-  const existing = await db
+  const normalizedEmail: string = email.trim().toLowerCase();
+
+  const [existing] = await db
     .select({ email: usersTable.email })
     .from(usersTable)
-    .where(eq(usersTable.email, email))
+    .where(eq(usersTable.email, normalizedEmail))
     .limit(1);
 
-  if (existing.length > 0) {
-    return res.status(409).json({ error: `User already exists with ${email}` });
+  if (existing) {
+    return res.status(409).json({ error: `User already exists with ${normalizedEmail}` });
   }
 
   const salt = randomBytes(16).toString('hex');
@@ -34,13 +39,13 @@ router.post("/signup", async (req: Request, res: Response) => {
   .update(password)
   .digest('hex')
 
-  await db.insert(usersTable).values({
+  const [user] = await db.insert(usersTable).values({
     name,
-    email,
+    email: normalizedEmail,
     password: passwordHash,
-  });
+  }).returning({id: usersTable.id});
 
-  return res.status(201).json({ ok: true });
+  return res.status(201).json({ ok: true, data: user });
 });
 
-export default router;
+export default UserRouter;
