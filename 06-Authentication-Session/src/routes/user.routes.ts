@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import "dotenv/config";
 import db from "../db/index.js";
 import { usersTable } from "../db/schema.js";
+import { userSessions } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { randomBytes, createHmac } from "node:crypto";
 
@@ -12,9 +13,11 @@ type User = {
     password?: string
   };
 
-export const UserRouter: Router = Router();
+export const router: Router = Router();
 
-UserRouter.post("/signup", async (req: Request, res: Response) => {
+
+//Signup router
+router.post("/signup", async (req: Request, res: Response) => {
   const { name, email, password } = (req.body ?? {}) as User;
 
   console.log("content-type:", req.headers["content-type"]);
@@ -47,4 +50,37 @@ UserRouter.post("/signup", async (req: Request, res: Response) => {
   }).returning({id: usersTable.id});
 
   return res.status(201).json({ ok: true, data: user });
+});
+
+//Login router
+router.post("/login", async(req:Request, res:Response) => {
+  const {email, password} = (req.body ?? {}) as User;
+  
+  if(!email || !password) return res.status(400).json({error: "Missing fields"});
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
+
+     if (!existingUser || !existingUser.salt) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  const salt: string = existingUser?.salt;
+
+  const hashedPassword = createHmac('sha256', salt).update(password).digest("hex");
+
+  if (hashedPassword !== existingUser.password) return res.status(401).json({ error: "Invalid credentials"})
+
+  const [session] = await db.insert(userSessions).values({
+    userId: existingUser.id
+  }).returning({ id: userSessions.id, createdAt: userSessions.createdAt });
+
+  if (!session) return res.status(500).json({ error: "Failed to create session" });
+
+  return res.json({ 
+    status: 'success',
+    sessionId: session.id,
+    createdAt: session.createdAt
+  })
 });
