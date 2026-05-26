@@ -12,7 +12,7 @@ type User = {
     password?: string
   };
 
-const UserRouter: Router = Router();
+export const UserRouter: Router = Router();
 
 UserRouter.post("/signup", async (req: Request, res: Response) => {
   const { name, email, password } = (req.body ?? {}) as User;
@@ -43,9 +43,8 @@ UserRouter.post("/signup", async (req: Request, res: Response) => {
     name,
     email: normalizedEmail,
     password: passwordHash,
+    salt: salt
   }).returning({id: usersTable.id});
 
   return res.status(201).json({ ok: true, data: user });
 });
-
-export default UserRouter;
