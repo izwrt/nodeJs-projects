@@ -12,8 +12,6 @@ const PORT= process.env.PORT ?? 8000
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/',router);
-
 //session validation
 app.use(async( req: Request, res: Response, next: NextFunction) => {
     const sessionId =  req.get('session-id');
@@ -37,6 +35,8 @@ app.use(async( req: Request, res: Response, next: NextFunction) => {
     req.user = data;
     return next();
 })
+
+app.use('/',router);
 
 app.listen(PORT, () => {
     console.log(`Server is running on PORT ${PORT}`);
