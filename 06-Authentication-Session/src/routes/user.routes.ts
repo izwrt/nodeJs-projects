@@ -1,11 +1,10 @@
-import { Router } from "express";
-import type { Request, Response } from "express";
 import "dotenv/config";
-import db from "../db/index.js";
-import { usersTable } from "../db/schema.js";
-import { userSessions } from "../db/schema.js";
 import { eq } from "drizzle-orm";
-import { randomBytes, createHmac } from "node:crypto";
+import type { Request, Response } from "express";
+import { Router } from "express";
+import { createHmac, randomBytes } from "node:crypto";
+import db from "../db/index.js";
+import { userSessions, usersTable } from "../db/schema.js";
 
 type User = {
     name?: string,
@@ -83,4 +82,23 @@ router.post("/login", async(req:Request, res:Response) => {
     sessionId: session.id,
     createdAt: session.createdAt
   })
+});
+
+//get-me
+router.get('/', async(req: Request, res:Response) => {
+  const user = req.user;
+
+  if(!user) return res.status(401).json({
+    error: {
+    code: "UNAUTHORIZED",
+    message: "You must be logged in to access this resource."
+    }
+  });
+
+  return res.json({
+    status: true,
+    data: {
+      user: user
+    }
+  });
 });
