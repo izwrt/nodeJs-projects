@@ -7,3 +7,8 @@ node_modules/
 **/drizzle.config.js
 **/drizzle.config.d.ts
 **/drizzle.config.*.map
+
+#Env files
+**/.env
+**/.env.*
+!**/.env.example
