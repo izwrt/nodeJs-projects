@@ -36,6 +36,8 @@ router.post("/signup", async (req: Request, res: Response) => {
     return res.status(409).json({ error: `User already exists with ${normalizedEmail}` });
   }
 
+  // Generate a unique salt and hash the password using HMAC-SHA256
+  // This ensures that even if two users have the same password, their hashes will be different.
   const salt = randomBytes(16).toString('hex');
   const passwordHash = createHmac('sha256',salt)
   .update(password)
@@ -61,16 +63,19 @@ router.post("/login", async(req:Request, res:Response) => {
 
   const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
 
-     if (!existingUser || !existingUser.salt) {
+  // Return generic error to prevent email enumeration attacks
+  if (!existingUser || !existingUser.salt) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
+  // Re-hash the provided password with the user's stored salt to verify
   const salt: string = existingUser?.salt;
-
   const hashedPassword = createHmac('sha256', salt).update(password).digest("hex");
 
   if (hashedPassword !== existingUser.password) return res.status(401).json({ error: "Invalid credentials"})
 
+  // Create a new session in the database
+  // This makes the auth "stateful" because the server remembers the session ID.
   const [session] = await db.insert(userSessions).values({
     userId: existingUser.id
   }).returning({ id: userSessions.id, createdAt: userSessions.createdAt });

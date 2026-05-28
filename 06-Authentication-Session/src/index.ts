@@ -12,7 +12,9 @@ const PORT= process.env.PORT ?? 8000
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-//session validation
+// Global Session Validation Middleware
+// This runs on EVERY request. It checks for a session-id header, looks it up in the database,
+// and attaches the user data to the request object if the session is valid.
 app.use(async( req: Request, res: Response, next: NextFunction) => {
     const sessionId =  req.get('session-id');
     
