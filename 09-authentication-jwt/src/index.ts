@@ -20,9 +20,10 @@ app.use(express.json());
 
 app.use(express.urlencoded({ extended: true }));
 
-// Global Session Validation Middleware
-// This runs on EVERY request. It checks for a session-id header, looks it up in the database,
-// and attaches the user data to the request object if the session is valid.
+// Global JWT Validation Middleware
+// This runs on EVERY request. It checks for an Authorization header, verifies the JWT signature,
+// and attaches the decoded payload to the request object if the token is valid.
+// Notice there are NO database queries here! This is the magic of stateless auth.
 app.use(( req: Request, res: Response, next: NextFunction) => {
     const tokenHeader =  req.get('Authorization');
     

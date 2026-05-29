@@ -75,12 +75,16 @@ router.post("/login", async(req:Request, res:Response) => {
 
   if (hashedPassword !== existingUser.password) return res.status(401).json({ error: "Invalid credentials"})
 
+  // Create the JWT Payload containing non-sensitive user data.
+  // This data will be encoded (not encrypted) inside the token.
   const payload = {
     id: existingUser.id,
     name: existingUser.name,
     email: existingUser.email
   }
 
+  // Cryptographically sign the token using our server's secret key.
+  // This makes the authentication "stateless" because we don't save the token to the database.
   const token = jwt.sign(payload, process.env.JWT_SECRET!);
   
   return res.status(200).json({ 
