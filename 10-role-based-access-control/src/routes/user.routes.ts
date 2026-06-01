@@ -4,8 +4,9 @@ import type { Request, Response } from "express";
 import { Router } from "express";
 import { createHmac, randomBytes } from "node:crypto";
 import db from "../db/index.js";
-import { userSessions, usersTable } from "../db/schema.js";
+import { usersTable } from "../db/schema.js";
 import jwt from "jsonwebtoken"
+import { ensureAuthenticated } from "../middleware/auth.middleware.js";
 
 type User = {
     name: string;
@@ -22,16 +23,13 @@ export const router: Router = Router();
 router.post("/signup", async (req: Request, res: Response) => {
   const { name, email, password, role } = (req.body ?? {}) as User;
 
-  console.log("content-type:", req.headers["content-type"]);
-  console.log("body:", req.body);
-
   if(!name || !email || !password) return res.status(400).json({ error: "Missing fields" });
 
   const normalizedEmail: string = email.trim().toLowerCase();
 
   const normalizedRole = role?.toUpperCase();
 
-    if (normalizedRole !== "USER" && normalizedRole !== "ADMIN") {
+    if (normalizedRole && normalizedRole !== "USER" && normalizedRole !== "ADMIN") {
     return res.status(400).json({ error: "Invalid role. Must be USER or ADMIN." });
   }
 
@@ -111,17 +109,9 @@ router.post("/login", async(req:Request, res:Response) => {
 });
 
 //get-me
-router.get('/', async(req: Request, res:Response) => {
+router.get('/',ensureAuthenticated, async(req: Request, res:Response) => {
   const user = req.user;
-  if(!user) return res.status(401).json({
-    error: {
-    code: "UNAUTHORIZED",
-    message: "You must be logged in to access this resource."
-    }
-  });
-  console.log(user)
-  if(user.role === "USER") return res.json({status: true})
-
+  
   return res.json({
     status: true,
     data: {

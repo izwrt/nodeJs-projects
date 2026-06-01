@@ -5,14 +5,9 @@ import { router } from './routes/user.routes.js';
 import type { Request, Response, NextFunction } from 'express';
 import { userSessions, usersTable } from './db/schema.js';
 import { eq } from "drizzle-orm";
-import jwt from "jsonwebtoken"
+import adminRouter from './routes/admin.routes.js';
+import { authenticate } from './middleware/auth.middleware.js';
 
-type Payload = {
-    id: string,
-    name: string,
-    email: string,
-    role: "USER" | "ADMIN",
-}
 
 const app = express();
 const PORT= process.env.PORT ?? 8000
@@ -25,26 +20,10 @@ app.use(express.urlencoded({ extended: true }));
 // This runs on EVERY request. It checks for an Authorization header, verifies the JWT signature,
 // and attaches the decoded payload to the request object if the token is valid.
 // Notice there are NO database queries here! This is the magic of stateless auth.
-app.use(( req: Request, res: Response, next: NextFunction) => {
-    const tokenHeader =  req.get('Authorization');
-    
-    if(!tokenHeader) return next();
-
-    if(!tokenHeader.startsWith('Bearer')) return next();
-    
-    const token = tokenHeader.split(' ')[1]!
-
-    try{
-        const decode = jwt.verify(token, process.env.JWT_SECRET!) as Payload
-        req.user = decode;
-    } catch (err) {
-        console.log("JWT Error:", err);
-    }
-
-    return next();
-})
+app.use(authenticate);
 
 app.use('/',router);
+app.use('/admin', adminRouter);
 
 app.listen(PORT, () => {
     console.log(`Server is running on PORT ${PORT}`);
