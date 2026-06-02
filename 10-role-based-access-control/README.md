@@ -1,113 +1,91 @@
-# 🔐 JWT Authentication (The Stateless Way)
+# 10 - Role-Based Access Control (RBAC) with JWT
 
-Welcome to the **09-authentication-jwt** project! This module is a deep dive into building a robust, production-grade, **stateless** authentication system from scratch using Node.js, Express, TypeScript, PostgreSQL, Drizzle ORM, and JSON Web Tokens (JWT).
+This project builds upon stateless JWT authentication by introducing **Role-Based Access Control (RBAC)**. It demonstrates how to restrict access to certain routes based on a user's role (e.g., `USER` vs. `ADMIN`).
 
-Instead of relying on database lookups for every request, this project demonstrates how to securely issue and verify cryptographically signed tokens to authenticate users.
+## 🧠 Core Concepts
 
----
+### Authentication vs. Authorization
+*   **Authentication (AuthN):** "Who are you?" (Verifying identity via email/password and issuing a JWT).
+*   **Authorization (AuthZ):** "What are you allowed to do?" (Checking if the authenticated user has the `ADMIN` role to access a specific resource).
 
-## 🛠️ What We Built
+### The Security Analogy
+We structured our middleware in three distinct layers, similar to physical building security:
 
-In this project, we implemented a complete JWT authentication pipeline:
+1.  **`authenticate` (The Security Camera):** Runs globally on all requests. It looks at the `Authorization` header. If a valid token is found, it identifies the person (`req.user = payload`). It **does not** block anyone.
+2.  **`ensureAuthenticated` (The Security Guard):** Placed only on protected routes. It checks if the person was identified by the camera (`if (!req.user)`). If not, it blocks them with a `401 Unauthorized`.
+3.  **`requireAdmin` (The VIP Bouncer):** Placed only on admin routes. It checks the person's badge/role (`if (req.user.role !== "ADMIN")`). If they are just a regular user, it blocks them with a `403 Forbidden`.
 
-1. **Secure Signup (`POST /signup`):** 
-   - Takes user credentials and generates a cryptographically secure random `salt`.
-   - Hashes the password using `HMAC-SHA256` combined with the salt.
-   - Saves the user safely to the PostgreSQL database.
-2. **Stateless Login (`POST /login`):** 
-   - Verifies the user's password against the stored hash.
-   - Generates a **JSON Web Token (JWT)** containing the user's `id`, `name`, and `email`.
-   - Cryptographically signs the token using a secret `JWT_SECRET`.
-   - Returns the token to the client.
-3. **Protected Routes (`GET /`):** 
-   - Uses custom Express middleware to intercept incoming requests.
-   - Reads the `Authorization: Bearer <token>` header.
-   - Verifies the token's signature using the server's secret key.
-   - Decodes the payload and attaches the `user` object directly to the Express `req` object, **without querying the database**.
+## 🏗️ Architecture & Implementation
 
----
+### 1. Database Schema (PostgreSQL Enums)
+We use a PostgreSQL `ENUM` to strictly enforce roles at the database level. This ensures data integrity—no one can accidentally be assigned a role of `"SUPERUSER"` or `"hacker"`.
 
-## 🧠 Deep Dive: How JWT Authentication Works
+```typescript
+export const roleEnum = pgEnum("role", ["USER", "ADMIN"]);
 
-Imagine a highly exclusive VIP club. 
-
-When you arrive at the club for the first time (Login), you show your ID and password. The bouncer verifies who you are. Instead of writing your name on a clipboard, the bouncer hands you a **VIP Badge** that has your name printed on it. The bouncer then stamps the badge with an **unforgeable wax seal** (the cryptographic signature).
-
-* The **VIP Badge** is the JWT.
-* The **Wax Seal** is the signature created using your server's `JWT_SECRET`.
-
-Every time you want to enter a room in the club (make an API request), you show your badge. The bouncer doesn't need to look at a clipboard or call the front desk. They just look at the wax seal. If the seal is unbroken and authentic, they trust the name printed on the badge and let you in.
-
-### The Technical Flow:
-1. Client sends `email` and `password`.
-2. Server verifies credentials against the database.
-3. Server creates a JSON object (Payload): `{ id: "123", email: "a@a.com" }`.
-4. Server signs this payload using a secret key, creating a JWT.
-5. Server sends the JWT back to the client.
-6. Client stores this token (usually in `localStorage` or memory).
-7. On the next request, the client sends the token in the `Authorization` header.
-8. Server mathematically verifies the signature. If valid, the user is authenticated!
-
----
-
-## 🏛️ What does "Stateless" mean?
-
-JWT authentication is a **Stateless** architecture. 
-
-**"Stateless" means the server has no memory of who is logged in.** The server does not store active sessions in a database or Redis. The token itself contains all the information needed to authenticate the user. 
-
-Because the server doesn't need to do a database lookup on every single request, stateless authentication is incredibly fast and highly scalable.
-
----
-
-## ⚔️ The Great Debate: JWT (Stateless) vs. Sessions (Stateful)
-
-If you've built traditional web apps, you've likely used **Session-based auth**. In a session system, the bouncer *does* have a clipboard (a database table), and they check it every time you move.
-
-### Why use JWTs instead of Sessions?
-
-#### 1. Infinite Scalability (Microservices)
-If you have 10 different backend servers (e.g., a User Service, an Order Service, a Payment Service), a session-based system requires all 10 servers to talk to the same shared database to check if a user is logged in. 
-With JWT, **any server that knows the secret key can verify the token independently.** The Order Service doesn't need to talk to the User Service; it just checks the math on the token's signature. This is why JWTs are the industry standard for Microservice architectures.
-
-#### 2. Zero Database Lookups
-Because the token contains the user's ID and email, the server doesn't need to query the database to figure out who is making the request. This saves a massive amount of database load, especially on high-traffic APIs.
-
-#### 3. Cross-Domain (CORS) Friendly
-Cookies (used in sessions) are tied to a specific domain (like `api.yoursite.com`). If your frontend is on a mobile app, or a completely different domain, managing cookies becomes a nightmare. JWTs are just strings sent in the `Authorization` header, making them work effortlessly across web, iOS, Android, and third-party APIs.
-
-### The Tradeoffs (Why JWT isn't perfect)
-*   **The Revocation Problem:** Because the server has no memory, you cannot easily "log a user out" or invalidate a specific token before it expires. If a hacker steals a JWT, it is valid until the expiration time hits.
-*   **Stale Data:** If a user changes their email in the database, the JWT they are currently holding still contains the old email until they log in again and get a new token.
-
----
-
-## 🚀 How to Run This Project
-
-### 1. Start the Database
-Make sure Docker is running, then start the PostgreSQL container:
-```bash
-docker compose up -d
+export const usersTable = pgTable("user", {
+  // ... other fields
+  role: roleEnum("role").notNull().default("USER"),
+});
 ```
 
-### 2. Environment Variables
-Ensure you have a `.env` file in this directory with your database connection string and a secure JWT secret:
-```env
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_password
-DATABASE_URL=postgres://postgres:your_password@localhost:5432/authentication_jwt
-# Generate a strong secret: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-JWT_SECRET=your_super_secret_random_string_here
+### 2. JWT Payload
+When a user logs in, their role is embedded directly into the JWT payload. Because the token is cryptographically signed, the user cannot tamper with it to elevate their own privileges.
+
+```json
+{
+  "id": "uuid-1234",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "role": "ADMIN",
+  "iat": 1717320000
+}
 ```
 
-### 3. Install Dependencies & Migrate
-```bash
-pnpm install
-pnpm db:push  # Pushes the Drizzle schema to your Postgres database
+### 3. Middleware Pipeline
+Protected routes use a clean, readable middleware pipeline:
+
+```typescript
+// Admin Route Example
+adminRouter.get("/users", ensureAuthenticated, requireAdmin, async (req, res) => {
+    // If code reaches here, we are 100% sure the user is logged in AND is an admin.
+    const users = await db.select().from(usersTable);
+    res.json({ status: "Success", data: users });
+});
 ```
 
-### 4. Start the Server
-```bash
-pnpm dev
-```
-The server will start on `http://localhost:8000`. You can now use Postman or Thunder Client to test the `/signup`, `/login`, and `/` routes!
+## 🚀 How to Run
+
+1. **Start the Database:**
+   ```bash
+   docker compose up -d
+   ```
+
+2. **Install Dependencies:**
+   ```bash
+   pnpm install
+   ```
+
+3. **Push the Schema to the Database:**
+   ```bash
+   pnpm run db:push
+   ```
+
+4. **Start the Development Server:**
+   ```bash
+   pnpm run dev
+   ```
+
+## 🧪 Testing the Flow (Postman / Thunder Client)
+
+1. **Signup as a normal user:**
+   * `POST /signup` with `{ "name": "User", "email": "user@test.com", "password": "password123" }` (Role defaults to `USER`).
+2. **Signup as an admin:**
+   * `POST /signup` with `{ "name": "Admin", "email": "admin@test.com", "password": "password123", "role": "ADMIN" }`.
+3. **Login:**
+   * `POST /login` with either account to get a JWT.
+4. **Access Profile (`GET /`):**
+   * Pass the token in the `Authorization: Bearer <token>` header. Both users can access this.
+5. **Access Admin Route (`GET /admin/users`):**
+   * Pass the normal user token -> Returns `403 Forbidden`.
+   * Pass the admin token -> Returns `200 OK` with the list of users.
