@@ -8,7 +8,7 @@ const PORT = process.env.PORT ?? 8000;
 
 app.use(express.json());
 
-app.use('/api/user',router)
+app.use('/api/user',router);
 
 connectMongoDB(process.env.MONGODB_URL!)
   .then(() => {
