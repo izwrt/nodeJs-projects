@@ -11,6 +11,10 @@ router.post('/signup', async (req: Request, res: Response) => {
      // 1. Validate input
     if (!name || !email || !password) return res.status(400).json({ error: "All the fields are required"});
 
+    const existingUser = await User.findOne({email,});
+
+    if(existingUser) return res.status(409).json({error: "User with the email id is already exists"});
+
     const salt =  randomBytes(16).toString('hex');
 
     const hashedPassword = createHmac('sha256', salt)
@@ -28,7 +32,7 @@ router.post('/signup', async (req: Request, res: Response) => {
     // 4. Send a success response back to the client
     return res.status(201).json({
         message: "User created successfully",
-        userId: user.id
+        userId: user._id
     })
 
 });
