@@ -2,12 +2,14 @@ import express from "express";
 import "dotenv/config";
 import { connectMongoDB } from "./connection.js";
 import router from "./routes/user.routes.js";
+import { authenticate } from "./middleware/auth.middleware.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 8000;
 
 app.use(express.json());
 
+app.use(authenticate);
 app.use('/api/user',router);
 
 connectMongoDB(process.env.MONGODB_URL!)

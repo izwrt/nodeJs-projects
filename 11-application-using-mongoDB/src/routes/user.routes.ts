@@ -3,7 +3,8 @@ import type { Request, Response } from 'express';
 import { createHmac, randomBytes } from 'node:crypto';
 import User from '../models/user.model.js';
 import jwt from 'jsonwebtoken';
-import "dotenv/config"
+import "dotenv/config";
+import { requireAuth } from '../middleware/auth.middleware.js';
 
 const router: Router = Router();
 
@@ -47,11 +48,13 @@ const { email, password} = req.body;
 
     const existingUser = await User.findOne({email});
 
-    if (!existingUser) return res.status(404).json({error: "User not found with email Id"});
+    if (!existingUser || !existingUser.salt) {
+    return res.status(401).json({error: "Invalid credentials"});    
+    }
 
     const payload = {
-        userId: existingUser?._id,
-        userName: existingUser?.name,
+        id: existingUser?._id,
+        name: existingUser?.name,
         email: existingUser?.email
     }
 
@@ -67,6 +70,17 @@ const { email, password} = req.body;
         message:"Success",
         token: token,
         data: payload
+    });
+});
+
+router.get('/get-me', requireAuth, async (req: Request, res: Response) => {
+    const userData = req.user;
+
+    if(!userData) return res.status(401).json({error: "Unauthorized access"});
+
+    return res.json({
+        message: "Success",
+        data: userData
     })
 })
 
