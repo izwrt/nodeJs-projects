@@ -14,10 +14,12 @@ router.post('/signup', async (req: Request, res: Response) => {
      // 1. Validate input
     if (!name || !email || !password) return res.status(400).json({ error: "All the fields are required"});
 
+    // 2. Check for existing user to prevent duplicates
     const existingUser = await User.findOne({email,});
 
     if(existingUser) return res.status(409).json({error: "User with the email id is already exists"});
 
+    // 3. Generate salt and hash password using HMAC-SHA256
     const salt =  randomBytes(16).toString('hex');
 
     const hashedPassword = createHmac('sha256', salt)
@@ -48,22 +50,28 @@ const { email, password} = req.body;
 
     const existingUser = await User.findOne({email});
 
+    // 2. Check if user exists and has a salt
+    // We use a generic error message to prevent email enumeration attacks (hackers guessing emails).
     if (!existingUser || !existingUser.salt) {
     return res.status(401).json({error: "Invalid credentials"});    
     }
 
+    // 3. Create the JWT payload
+    // Because of the check above, TypeScript knows existingUser is valid, so we don't need '?'
     const payload = {
-        id: existingUser?._id,
-        name: existingUser?.name,
-        email: existingUser?.email
+        id: existingUser._id,
+        name: existingUser.name,
+        email: existingUser.email
     }
 
-    const hashedPassword = createHmac('sha256', existingUser?.salt)
+    // 4. Verify password
+    const hashedPassword = createHmac('sha256', existingUser.salt)
         .update(password)
         .digest('hex');
 
-    if (hashedPassword !== existingUser?.password) return res.status(401).json({error: "Invalidate credentials"});
+    if (hashedPassword !== existingUser.password) return res.status(401).json({error: "Invalid credentials"});
 
+    // 5. Sign token and return
     const token = jwt.sign(payload, process.env.JWT_SECRET!);
 
     return res.json({
